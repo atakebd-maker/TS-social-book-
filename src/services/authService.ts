@@ -15,6 +15,7 @@ import { doc, getDoc, getDocs, collection, setDoc } from 'firebase/firestore';
 import { auth, db } from './firebase';
 import { UserProfile } from '../types';
 import { localStore } from './localStore';
+import { sanitizeFirestoreData } from '../utils/firestoreSanitizer';
 
 export interface AuthState {
   currentUser: UserProfile | null;
@@ -185,7 +186,7 @@ export const authService = {
     };
 
     try {
-      await setDoc(doc(db, 'users', newId), newProfile);
+      await setDoc(doc(db, 'users', newId), sanitizeFirestoreData(newProfile));
     } catch (fsErr) {
       console.warn('Failed to save fallback profile to Firestore:', fsErr);
     }
@@ -247,7 +248,7 @@ export const authService = {
 
     // 3. Save to Cloud Firestore
     try {
-      await setDoc(doc(db, 'users', uid), newUser);
+      await setDoc(doc(db, 'users', uid), sanitizeFirestoreData(newUser));
     } catch (err) {
       console.warn('Failed to save new user to Firestore:', err);
     }

@@ -1,22 +1,47 @@
 /**
  * TS Social Book - Comment Service
- * 
- * ============================================================================
- * FIREBASE INTEGRATION READY:
- * Comments can be stored in a root `comments` collection or as a subcollection:
- *   - collection(db, "posts", postId, "comments")
- *   - addDoc(...)
- *   - onSnapshot(...) for real-time updates
- * ============================================================================
+ * Powered by Cloud Firestore & local cache
  */
 
+import { collection, doc, getDocs, setDoc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { db } from './firebase';
 import { PostComment, CommentReply } from '../types';
 import { localStore } from './localStore';
 import { notificationService } from './notificationService';
 import { activityService } from './activityService';
+import { sanitizeFirestoreData } from '../utils/firestoreSanitizer';
 
 export const commentService = {
+  async fetchRemoteComments(postId: string): Promise<PostComment[]> {
+    try {
+      const snap = await getDocs(collection(db, 'posts', postId, 'comments'));
+      if (!snap.empty) {
+        const fetched: PostComment[] = snap.docs.map((d) => d.data() as PostComment);
+        const map = new Map<string, PostComment>();
+        fetched.forEach((c) => {
+          if (c && c.id) map.set(c.id, c);
+        });
+
+        const current = localStore.comments[postId] || [];
+        current.forEach((c) => {
+          if (c && c.id && !map.has(c.id)) map.set(c.id, c);
+        });
+
+        localStore.comments[postId] = Array.from(map.values()).sort(
+          (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+        );
+        localStore.saveComments();
+        return localStore.comments[postId];
+      }
+    } catch (err) {
+      console.warn('Failed to fetch comments from Firestore:', err);
+    }
+    return localStore.comments[postId] || [];
+  },
+
   async getComments(postId: string): Promise<PostComment[]> {
+    // Fetch from Firestore
+    await this.fetchRemoteComments(postId);
     const list = localStore.comments[postId] || [];
     return [...list].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
   },
@@ -53,9 +78,22 @@ export const commentService = {
     if (post) {
       post.commentsCount = (post.commentsCount || 0) + 1;
       localStore.savePosts();
+    }
 
-      // Notify post author
-      if (post.authorId !== author.id) {
+    // Persist comment to Cloud Firestore
+    try {
+      const cleanData = sanitizeFirestoreData(newComment);
+      await setDoc(doc(db, 'posts', postId, 'comments', newComment.id), cleanData);
+      if (post) {
+        await updateDoc(doc(db, 'posts', postId), { commentsCount: post.commentsCount });
+      }
+    } catch (err) {
+      console.warn('Failed to persist comment to Firestore:', err);
+    }
+
+    // Notify post author
+    if (post && post.authorId !== author.id) {
+      try {
         await notificationService.addNotification({
           userId: post.authorId,
           senderId: author.id,
@@ -68,17 +106,19 @@ export const commentService = {
           targetId: postId,
           targetType: 'post'
         });
-      }
+      } catch {}
     }
 
     // Activity log
-    await activityService.logActivity({
-      userId: author.id,
-      type: 'comment_added',
-      title: 'Added a comment',
-      description: `Commented: "${content.slice(0, 40)}"`,
-      targetId: postId
-    });
+    try {
+      await activityService.logActivity({
+        userId: author.id,
+        type: 'comment_added',
+        title: 'Added a comment',
+        description: `Commented: "${content.slice(0, 40)}"`,
+        targetId: postId
+      });
+    } catch {}
 
     return newComment;
   },
@@ -117,20 +157,33 @@ export const commentService = {
       localStore.savePosts();
     }
 
+    // Persist to Cloud Firestore
+    try {
+      const cleanParent = sanitizeFirestoreData(parentComment);
+      await setDoc(doc(db, 'posts', postId, 'comments', commentId), cleanParent);
+      if (post) {
+        await updateDoc(doc(db, 'posts', postId), { commentsCount: post.commentsCount });
+      }
+    } catch (err) {
+      console.warn('Failed to sync comment reply to Firestore:', err);
+    }
+
     // Notify original comment author
     if (parentComment.authorId !== author.id) {
-      await notificationService.addNotification({
-        userId: parentComment.authorId,
-        senderId: author.id,
-        senderName: author.name,
-        senderUsername: author.username,
-        senderAvatar: author.avatar,
-        type: 'comment_reply',
-        title: 'Replied to your comment',
-        message: `${author.name} replied: "${content.slice(0, 50)}"`,
-        targetId: postId,
-        targetType: 'comment'
-      });
+      try {
+        await notificationService.addNotification({
+          userId: parentComment.authorId,
+          senderId: author.id,
+          senderName: author.name,
+          senderUsername: author.username,
+          senderAvatar: author.avatar,
+          type: 'comment_reply',
+          title: 'Replied to your comment',
+          message: `${author.name} replied: "${content.slice(0, 50)}"`,
+          targetId: postId,
+          targetType: 'comment'
+        });
+      } catch {}
     }
 
     return reply;
@@ -146,29 +199,35 @@ export const commentService = {
     const comment = commentsList.find((c) => c.id === commentId);
     if (!comment) return false;
 
+    let hasLiked = false;
     if (replyId) {
       const reply = comment.replies?.find((r) => r.id === replyId);
       if (!reply) return false;
       if (!reply.likes) reply.likes = [];
-      const hasLiked = reply.likes.includes(userId);
+      hasLiked = reply.likes.includes(userId);
       if (hasLiked) {
         reply.likes = reply.likes.filter((id) => id !== userId);
       } else {
         reply.likes.push(userId);
       }
-      localStore.saveComments();
-      return !hasLiked;
     } else {
       if (!comment.likes) comment.likes = [];
-      const hasLiked = comment.likes.includes(userId);
+      hasLiked = comment.likes.includes(userId);
       if (hasLiked) {
         comment.likes = comment.likes.filter((id) => id !== userId);
       } else {
         comment.likes.push(userId);
       }
-      localStore.saveComments();
-      return !hasLiked;
     }
+
+    localStore.saveComments();
+
+    try {
+      const cleanComment = sanitizeFirestoreData(comment);
+      await setDoc(doc(db, 'posts', postId, 'comments', commentId), cleanComment);
+    } catch {}
+
+    return !hasLiked;
   },
 
   async editComment(
@@ -191,6 +250,11 @@ export const commentService = {
       comment.isEdited = true;
     }
     localStore.saveComments();
+
+    try {
+      const cleanComment = sanitizeFirestoreData(comment);
+      await setDoc(doc(db, 'posts', postId, 'comments', commentId), cleanComment);
+    } catch {}
   },
 
   async deleteComment(postId: string, commentId: string, replyId?: string): Promise<void> {
@@ -206,6 +270,14 @@ export const commentService = {
           post.commentsCount -= 1;
           localStore.savePosts();
         }
+
+        try {
+          const cleanComment = sanitizeFirestoreData(comment);
+          await setDoc(doc(db, 'posts', postId, 'comments', commentId), cleanComment);
+          if (post) {
+            await updateDoc(doc(db, 'posts', postId), { commentsCount: post.commentsCount });
+          }
+        } catch {}
       }
     } else {
       const comment = commentsList.find((c) => c.id === commentId);
@@ -218,6 +290,13 @@ export const commentService = {
         post.commentsCount = Math.max(0, post.commentsCount - (1 + repliesCount));
         localStore.savePosts();
       }
+
+      try {
+        await deleteDoc(doc(db, 'posts', postId, 'comments', commentId));
+        if (post) {
+          await updateDoc(doc(db, 'posts', postId), { commentsCount: post.commentsCount });
+        }
+      } catch {}
     }
   }
 };

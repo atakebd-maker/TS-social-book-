@@ -7,6 +7,7 @@ import { collection, doc, getDocs, setDoc, updateDoc, deleteDoc } from 'firebase
 import { db } from './firebase';
 import { Story } from '../types';
 import { localStore } from './localStore';
+import { sanitizeFirestoreData } from '../utils/firestoreSanitizer';
 
 export const storyService = {
   async fetchRemoteStories(): Promise<void> {
@@ -68,7 +69,7 @@ export const storyService = {
     localStore.saveStories();
 
     try {
-      await setDoc(doc(db, 'stories', newStory.id), newStory);
+      await setDoc(doc(db, 'stories', newStory.id), sanitizeFirestoreData(newStory));
     } catch (err) {
       console.warn('Failed to persist story to Firestore:', err);
     }

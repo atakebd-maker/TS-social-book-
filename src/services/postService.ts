@@ -1,6 +1,6 @@
 /**
  * TS Social Book - Post Service
- * Powered by Cloud Firestore with instant local caching
+ * Powered by Cloud Firestore with real-time multi-device synchronization
  */
 
 import {
@@ -11,14 +11,14 @@ import {
   setDoc,
   updateDoc,
   deleteDoc,
-  query,
-  orderBy,
-  limit as fsLimit
+  onSnapshot,
+  Unsubscribe
 } from 'firebase/firestore';
 import { db } from './firebase';
 import { Post, PostPrivacy, PostMedia } from '../types';
 import { localStore } from './localStore';
 import { activityService } from './activityService';
+import { sanitizeFirestoreData } from '../utils/firestoreSanitizer';
 
 export interface CreatePostInput {
   authorId: string;
@@ -36,35 +36,90 @@ export interface CreatePostInput {
 }
 
 export const postService = {
-  async fetchRemotePosts(): Promise<void> {
+  /**
+   * Fetches latest posts from Cloud Firestore and merges into local cache
+   */
+  async fetchRemotePosts(): Promise<Post[]> {
     try {
-      const q = query(collection(db, 'posts'), orderBy('createdAt', 'desc'), fsLimit(50));
-      const snap = await getDocs(q);
+      const snap = await getDocs(collection(db, 'posts'));
       if (!snap.empty) {
         const fetched: Post[] = snap.docs.map((d) => d.data() as Post);
         const map = new Map<string, Post>();
-        fetched.forEach((p) => map.set(p.id, p));
-        localStore.posts.forEach((p) => {
-          if (!map.has(p.id)) map.set(p.id, p);
+        fetched.forEach((p) => {
+          if (p && p.id) map.set(p.id, p);
         });
+
+        // Also merge local posts that may not have synced yet
+        localStore.posts.forEach((p) => {
+          if (p && p.id && !map.has(p.id)) {
+            map.set(p.id, p);
+          }
+        });
+
         localStore.posts = Array.from(map.values()).sort(
           (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
         );
         localStore.savePosts();
+        return localStore.posts;
       }
     } catch (err) {
       console.warn('Failed to fetch posts from Firestore:', err);
     }
+    return localStore.posts;
   },
 
-  async getPosts(options: {
-    filter?: 'all' | 'friends' | 'trending' | 'media';
-    currentUserId?: string;
-    authorId?: string;
-    hashtag?: string;
-  } = {}): Promise<Post[]> {
-    // Attempt remote sync in background
-    this.fetchRemotePosts().catch(() => {});
+  /**
+   * Real-time listener: triggers whenever ANY device or mobile creates/updates a post
+   */
+  subscribeToPosts(callback: (posts: Post[]) => void): Unsubscribe {
+    try {
+      const unsubscribe = onSnapshot(
+        collection(db, 'posts'),
+        (snap) => {
+          if (!snap.empty) {
+            const remotePosts: Post[] = snap.docs.map((d) => d.data() as Post);
+            const map = new Map<string, Post>();
+            remotePosts.forEach((p) => {
+              if (p && p.id) map.set(p.id, p);
+            });
+
+            localStore.posts.forEach((p) => {
+              if (p && p.id && !map.has(p.id)) {
+                map.set(p.id, p);
+              }
+            });
+
+            localStore.posts = Array.from(map.values()).sort(
+              (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+            );
+            localStore.savePosts();
+            callback(localStore.posts);
+          }
+        },
+        (error) => {
+          console.warn('Posts real-time listener notice:', error);
+        }
+      );
+      return unsubscribe;
+    } catch (err) {
+      console.warn('Failed to attach real-time post listener:', err);
+      return () => {};
+    }
+  },
+
+  /**
+   * Get filtered posts, syncing from Firestore first so all devices see latest content
+   */
+  async getPosts(
+    options: {
+      filter?: 'all' | 'friends' | 'trending' | 'media';
+      currentUserId?: string;
+      authorId?: string;
+      hashtag?: string;
+    } = {}
+  ): Promise<Post[]> {
+    // Await remote sync so posts from all mobiles/devices are immediately loaded
+    await this.fetchRemotePosts();
 
     let list = [...localStore.posts];
 
@@ -92,13 +147,13 @@ export const postService = {
     } else if (options.filter === 'trending') {
       list = list.sort((a, b) => {
         const totalA =
-          Object.values(a.reactionsCount).reduce((acc, v) => acc + v, 0) +
-          a.commentsCount * 2 +
-          a.sharesCount * 3;
+          Object.values(a.reactionsCount || {}).reduce((acc, v) => acc + v, 0) +
+          (a.commentsCount || 0) * 2 +
+          (a.sharesCount || 0) * 3;
         const totalB =
-          Object.values(b.reactionsCount).reduce((acc, v) => acc + v, 0) +
-          b.commentsCount * 2 +
-          b.sharesCount * 3;
+          Object.values(b.reactionsCount || {}).reduce((acc, v) => acc + v, 0) +
+          (b.commentsCount || 0) * 2 +
+          (b.sharesCount || 0) * 3;
         return totalB - totalA;
       });
       return list;
@@ -141,6 +196,10 @@ export const postService = {
     return this.getPosts({ hashtag });
   },
 
+  /**
+   * Create Post
+   * Guarantees persistence to Cloud Firestore without undefined value errors
+   */
   async createPost(input: CreatePostInput): Promise<Post> {
     const newPost: Post = {
       id: `post_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
@@ -148,9 +207,9 @@ export const postService = {
       authorName: input.authorName,
       authorUsername: input.authorUsername,
       authorAvatar: input.authorAvatar,
-      authorVerified: input.authorVerified,
+      authorVerified: input.authorVerified || false,
       createdAt: new Date().toISOString(),
-      content: input.content,
+      content: input.content || '',
       privacy: input.privacy || 'public',
       media: input.media || [],
       feeling: input.feeling,
@@ -172,13 +231,14 @@ export const postService = {
       savesCount: 0
     };
 
-    // 1. Immediately store in local store for rapid UI response
+    // 1. Immediately store in local store for instantaneous UI response
     localStore.posts.unshift(newPost);
     localStore.savePosts();
 
-    // 2. Persist permanently to Cloud Firestore
+    // 2. Persist permanently to Cloud Firestore with sanitized fields
     try {
-      await setDoc(doc(db, 'posts', newPost.id), newPost);
+      const cleanData = sanitizeFirestoreData(newPost);
+      await setDoc(doc(db, 'posts', newPost.id), cleanData);
     } catch (err) {
       console.error('Failed to persist post to Firestore:', err);
     }
@@ -198,13 +258,15 @@ export const postService = {
     }
 
     // 4. Log Activity
-    await activityService.logActivity({
-      userId: input.authorId,
-      type: 'post_created',
-      title: 'Created a post',
-      description: input.content.slice(0, 60) + (input.content.length > 60 ? '...' : ''),
-      targetId: newPost.id
-    });
+    try {
+      await activityService.logActivity({
+        userId: input.authorId,
+        type: 'post_created',
+        title: 'Created a post',
+        description: input.content.slice(0, 60) + (input.content.length > 60 ? '...' : ''),
+        targetId: newPost.id
+      });
+    } catch {}
 
     return newPost;
   },
@@ -224,7 +286,12 @@ export const postService = {
     localStore.savePosts();
 
     try {
-      await updateDoc(doc(db, 'posts', postId), updates);
+      const cleanUpdates = sanitizeFirestoreData({
+        ...updates,
+        isEdited: true,
+        updatedAt: updated.updatedAt
+      });
+      await updateDoc(doc(db, 'posts', postId), cleanUpdates);
     } catch (err) {
       console.warn('Failed to update post in Firestore:', err);
     }
@@ -252,14 +319,19 @@ export const postService = {
     if (index === -1) throw new Error('Post not found');
 
     const post = { ...localStore.posts[index] };
+    if (!post.reactions) post.reactions = {};
+    if (!post.reactionsCount) {
+      post.reactionsCount = { like: 0, love: 0, care: 0, haha: 0, wow: 0, sad: 0, angry: 0 };
+    }
+
     const currentReaction = post.reactions[userId];
 
     if (currentReaction === reactionType) {
       delete post.reactions[userId];
-      post.reactionsCount[reactionType] = Math.max(0, post.reactionsCount[reactionType] - 1);
+      post.reactionsCount[reactionType] = Math.max(0, (post.reactionsCount[reactionType] || 1) - 1);
     } else {
       if (currentReaction) {
-        post.reactionsCount[currentReaction] = Math.max(0, post.reactionsCount[currentReaction] - 1);
+        post.reactionsCount[currentReaction] = Math.max(0, (post.reactionsCount[currentReaction] || 1) - 1);
       }
       post.reactions[userId] = reactionType;
       post.reactionsCount[reactionType] = (post.reactionsCount[reactionType] || 0) + 1;
@@ -269,10 +341,11 @@ export const postService = {
     localStore.savePosts();
 
     try {
-      await updateDoc(doc(db, 'posts', postId), {
+      const cleanReactions = sanitizeFirestoreData({
         reactions: post.reactions,
         reactionsCount: post.reactionsCount
       });
+      await updateDoc(doc(db, 'posts', postId), cleanReactions);
     } catch {
       // background
     }

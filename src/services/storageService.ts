@@ -106,7 +106,7 @@ export const storageService = {
         // Compress image using canvas
         const img = new Image();
         img.onload = () => {
-          const maxDimension = 1200;
+          const maxDimension = 960;
           let width = img.width;
           let height = img.height;
           if (width > maxDimension || height > maxDimension) {
@@ -127,8 +127,8 @@ export const storageService = {
             return;
           }
           ctx.drawImage(img, 0, 0, width, height);
-          // Export as clean compressed JPEG
-          const compressed = canvas.toDataURL('image/jpeg', 0.82);
+          // Export as clean compressed JPEG optimized for mobile and Firestore sync
+          const compressed = canvas.toDataURL('image/jpeg', 0.76);
           resolve(compressed);
         };
         img.onerror = () => resolve(rawResult);

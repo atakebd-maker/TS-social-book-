@@ -44,6 +44,15 @@ export const FeedView: React.FC = () => {
 
   useEffect(() => {
     loadFeed();
+
+    // Real-time synchronization across all devices and mobile phones
+    const unsubscribe = postService.subscribeToPosts(() => {
+      loadFeed();
+    });
+
+    return () => {
+      unsubscribe();
+    };
   }, [filterMode, selectedHashtag, currentUser, refreshKey]);
 
   const visiblePosts = posts.filter((p) => !hiddenPostIds.includes(p.id));

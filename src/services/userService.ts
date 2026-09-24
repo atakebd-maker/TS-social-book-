@@ -7,6 +7,7 @@ import { doc, getDoc, getDocs, collection, updateDoc } from 'firebase/firestore'
 import { db } from './firebase';
 import { UserProfile } from '../types';
 import { localStore } from './localStore';
+import { sanitizeFirestoreData } from '../utils/firestoreSanitizer';
 
 export const userService = {
   async getUser(userId: string): Promise<UserProfile | null> {
@@ -102,7 +103,7 @@ export const userService = {
     localStore.saveUsers();
 
     try {
-      await updateDoc(doc(db, 'users', userId), updates);
+      await updateDoc(doc(db, 'users', userId), sanitizeFirestoreData(updates));
     } catch (err) {
       console.warn('Failed to update profile in Firestore:', err);
     }
