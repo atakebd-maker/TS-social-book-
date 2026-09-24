@@ -1,0 +1,7 @@
+{
+  "name": "TS Social Book",
+  "description": "A modern, complete, and production-ready social networking platform featuring home feed, stories, rich posts, reactions, comments, profile, friends, notifications, media galleries, and admin portal.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
+

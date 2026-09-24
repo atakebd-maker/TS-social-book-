@@ -1,0 +1,126 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Registered user profile information and counters",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "username": { "type": "string" },
+        "email": { "type": "string" },
+        "avatar": { "type": "string" },
+        "coverPhoto": { "type": "string" },
+        "bio": { "type": "string" },
+        "joinedDate": { "type": "string" },
+        "role": { "type": "string", "enum": ["user", "moderator", "admin"] },
+        "status": { "type": "string", "enum": ["active", "suspended", "banned"] },
+        "friendsCount": { "type": "number" },
+        "followersCount": { "type": "number" },
+        "followingCount": { "type": "number" },
+        "postsCount": { "type": "number" },
+        "isVerified": { "type": "boolean" },
+        "work": { "type": "string" },
+        "location": { "type": "string" },
+        "website": { "type": "string" }
+      },
+      "required": ["id", "name", "username", "email", "avatar", "role", "status"]
+    },
+    "Post": {
+      "title": "Post",
+      "description": "User created feed publication",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "authorId": { "type": "string" },
+        "authorName": { "type": "string" },
+        "authorUsername": { "type": "string" },
+        "authorAvatar": { "type": "string" },
+        "authorVerified": { "type": "boolean" },
+        "createdAt": { "type": "string" },
+        "content": { "type": "string" },
+        "privacy": { "type": "string", "enum": ["public", "friends", "only_me"] },
+        "commentsCount": { "type": "number" },
+        "sharesCount": { "type": "number" },
+        "savesCount": { "type": "number" }
+      },
+      "required": ["id", "authorId", "authorName", "createdAt", "content", "privacy"]
+    },
+    "Story": {
+      "title": "Story",
+      "description": "Ephemeral 24 hour story publication",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "authorId": { "type": "string" },
+        "authorName": { "type": "string" },
+        "authorAvatar": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "expiresAt": { "type": "string" },
+        "mediaType": { "type": "string", "enum": ["text", "image", "video"] },
+        "mediaUrl": { "type": "string" },
+        "textContent": { "type": "string" },
+        "backgroundGradient": { "type": "string" },
+        "viewersCount": { "type": "number" }
+      },
+      "required": ["id", "authorId", "authorName", "createdAt", "expiresAt", "mediaType"]
+    },
+    "FriendRequest": {
+      "title": "FriendRequest",
+      "description": "Friendship connection request between users",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "senderId": { "type": "string" },
+        "senderName": { "type": "string" },
+        "senderUsername": { "type": "string" },
+        "senderAvatar": { "type": "string" },
+        "receiverId": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "accepted", "rejected"] },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "senderId", "senderName", "receiverId", "status", "createdAt"]
+    },
+    "Notification": {
+      "title": "Notification",
+      "description": "In-app notifications for social interactions",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "actorId": { "type": "string" },
+        "actorName": { "type": "string" },
+        "actorAvatar": { "type": "string" },
+        "type": { "type": "string" },
+        "title": { "type": "string" },
+        "message": { "type": "string" },
+        "targetId": { "type": "string" },
+        "isRead": { "type": "boolean" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "userId", "actorId", "actorName", "type", "title", "message", "isRead", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "UserProfile",
+      "description": "Collection of all registered user profiles"
+    },
+    "/posts/{postId}": {
+      "schema": "Post",
+      "description": "Feed posts created by community members"
+    },
+    "/stories/{storyId}": {
+      "schema": "Story",
+      "description": "Ephemeral 24-hour visual stories"
+    },
+    "/friendRequests/{requestId}": {
+      "schema": "FriendRequest",
+      "description": "Friend request invitations"
+    },
+    "/notifications/{notificationId}": {
+      "schema": "Notification",
+      "description": "User notification feed items"
+    }
+  }
+}
