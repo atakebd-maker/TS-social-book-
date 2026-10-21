@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { UserPlus, Check, X, ArrowRight, ShieldCheck, Flame } from 'lucide-react';
+import { UserPlus, Check, X, ArrowRight, ShieldCheck, Flame, QrCode, ExternalLink } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useApp } from '../../context/AppContext';
 import { friendService } from '../../services/friendService';
 import { userService } from '../../services/userService';
 import { FriendRequest, UserProfile } from '../../types';
+import { openQrCodeTools } from '../../utils/adDownloadManager';
 
 export const SidebarRight: React.FC = () => {
   const { currentUser } = useAuth();
@@ -212,6 +213,32 @@ export const SidebarRight: React.FC = () => {
         >
           <span>Explore #TSsocialbook</span>
           <ArrowRight className="w-3.5 h-3.5" />
+        </button>
+      </div>
+
+      {/* Featured Tool Category: QR code tools */}
+      <div className="bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-600 rounded-2xl p-4 text-white shadow-md shadow-blue-500/20">
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-xl bg-white/20 backdrop-blur-md flex items-center justify-center">
+              <QrCode className="w-4 h-4 text-white" />
+            </div>
+            <div>
+              <div className="text-xs font-black tracking-wide">QR code tools</div>
+              <div className="text-[10px] text-blue-200">Category Tool</div>
+            </div>
+          </div>
+          <span className="text-[10px] bg-white/20 text-white px-2 py-0.5 rounded-full font-bold">New</span>
+        </div>
+        <p className="text-xs text-blue-100 leading-relaxed mb-3">
+          Generate quick custom QR codes for websites, texts, and profiles.
+        </p>
+        <button
+          onClick={openQrCodeTools}
+          className="w-full text-xs font-bold bg-white text-blue-700 hover:bg-blue-50 py-2 px-3 rounded-xl flex items-center justify-center gap-1.5 transition-all shadow-sm active:scale-95 cursor-pointer"
+        >
+          <span>Open QR code tools</span>
+          <ExternalLink className="w-3.5 h-3.5" />
         </button>
       </div>
 

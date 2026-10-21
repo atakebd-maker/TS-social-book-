@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Sparkles, Clock, Users, User, X, Hash, Video, Plus, MessageSquare } from 'lucide-react';
+import { Sparkles, Clock, Users, User, X, Hash, Video, Plus, MessageSquare, QrCode, ExternalLink, Layers } from 'lucide-react';
 import { StoriesSection } from './StoriesSection';
 import { CreatePostCard } from './CreatePostCard';
 import { PostCard } from './PostCard';
@@ -7,6 +7,7 @@ import { postService } from '../../services/postService';
 import { Post } from '../../types';
 import { useAuth } from '../../context/AuthContext';
 import { useApp } from '../../context/AppContext';
+import { openQrCodeTools } from '../../utils/adDownloadManager';
 
 export const FeedView: React.FC = () => {
   const { currentUser } = useAuth();
@@ -14,6 +15,7 @@ export const FeedView: React.FC = () => {
 
   const [posts, setPosts] = useState<Post[]>([]);
   const [filterMode, setFilterMode] = useState<'recent' | 'popular' | 'videos' | 'mine'>('recent');
+  const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [hiddenPostIds, setHiddenPostIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -88,6 +90,44 @@ export const FeedView: React.FC = () => {
 
           {/* Create Post Card */}
           <CreatePostCard />
+
+          {/* Categories Bar */}
+          <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1 mb-3">
+            <button
+              onClick={() => setSelectedCategory('All')}
+              className={`px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all ${
+                selectedCategory === 'All'
+                  ? 'bg-blue-600 text-white shadow-xs'
+                  : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-800 hover:bg-slate-50'
+              }`}
+            >
+              All Categories
+            </button>
+
+            <button
+              onClick={openQrCodeTools}
+              className="px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-sm flex items-center gap-1.5 group shrink-0"
+              title="Open QR code tools (tsquickqr.netlify.app)"
+            >
+              <QrCode className="w-3.5 h-3.5" />
+              <span>QR code tools</span>
+              <span className="text-[10px] bg-white/25 px-1 rounded-sm">↗</span>
+            </button>
+
+            {['Technology', 'Entertainment', 'Gaming', 'Lifestyle', 'Education'].map((cat) => (
+              <button
+                key={cat}
+                onClick={() => setSelectedCategory(cat)}
+                className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all ${
+                  selectedCategory === cat
+                    ? 'bg-blue-600 text-white shadow-xs'
+                    : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800'
+                }`}
+              >
+                {cat}
+              </button>
+            ))}
+          </div>
 
           {/* Feed Filter Segmented Controls */}
           <div className="flex items-center gap-1.5 p-1 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 mb-4 shadow-xs">

@@ -9,10 +9,14 @@ import {
   ShieldAlert,
   Hash,
   Sparkles,
-  Gamepad2
+  Gamepad2,
+  QrCode,
+  ExternalLink,
+  Layers
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useApp } from '../../context/AppContext';
+import { QR_CODE_TOOLS_URL, openQrCodeTools } from '../../utils/adDownloadManager';
 
 export const SidebarLeft: React.FC = () => {
   const { currentUser } = useAuth();
@@ -35,6 +39,15 @@ export const SidebarLeft: React.FC = () => {
       icon: Home,
       action: navigateToFeed,
       badge: 0
+    },
+    {
+      id: 'qr_tools',
+      label: 'QR code tools',
+      icon: QrCode,
+      action: openQrCodeTools,
+      badge: 'New',
+      highlight: true,
+      isExternal: true
     },
     {
       id: 'friends',
@@ -144,7 +157,7 @@ export const SidebarLeft: React.FC = () => {
                 />
                 <span>{item.label}</span>
               </div>
-              {item.badge > 0 && (
+              {Boolean(item.badge) && (
                 <span
                   className={`text-xs px-2 py-0.5 rounded-full font-bold ${
                     isActive
@@ -158,6 +171,39 @@ export const SidebarLeft: React.FC = () => {
             </button>
           );
         })}
+      </div>
+
+      {/* Categories Section */}
+      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-3.5 shadow-sm">
+        <div className="flex items-center justify-between mb-2.5 px-1 text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
+          <div className="flex items-center gap-1.5">
+            <Layers className="w-3.5 h-3.5 text-blue-500" />
+            <span>Categories</span>
+          </div>
+        </div>
+        <div className="space-y-1">
+          <button
+            onClick={openQrCodeTools}
+            className="w-full text-left px-3 py-2 rounded-xl text-xs flex items-center justify-between font-bold text-blue-600 dark:text-blue-400 bg-blue-50/80 dark:bg-blue-950/40 hover:bg-blue-100 dark:hover:bg-blue-900/60 transition-colors group"
+            title="Open QR code tools (tsquickqr.netlify.app)"
+          >
+            <div className="flex items-center gap-2">
+              <QrCode className="w-4 h-4 text-blue-600 dark:text-blue-400 shrink-0" />
+              <span>QR code tools</span>
+            </div>
+            <ExternalLink className="w-3.5 h-3.5 text-blue-500 group-hover:translate-x-0.5 transition-transform" />
+          </button>
+
+          <button
+            onClick={navigateToGames}
+            className="w-full text-left px-3 py-2 rounded-xl text-xs flex items-center justify-between text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+          >
+            <div className="flex items-center gap-2">
+              <Gamepad2 className="w-4 h-4 text-purple-500 shrink-0" />
+              <span>Games & Arcade</span>
+            </div>
+          </button>
+        </div>
       </div>
 
       {/* Popular Hashtags */}

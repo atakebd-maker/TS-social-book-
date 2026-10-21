@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { X, ChevronLeft, ChevronRight, Eye, Trash2, Heart } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight, Eye, Trash2, Heart, Download } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useApp } from '../../context/AppContext';
 import { storyService } from '../../services/storyService';
 import { Story } from '../../types';
+import { executeTwoStepDownload, downloadMediaFile } from '../../utils/adDownloadManager';
 
 export const StoryViewerModal: React.FC = () => {
   const { currentUser } = useAuth();
@@ -14,6 +15,7 @@ export const StoryViewerModal: React.FC = () => {
   const [progress, setProgress] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
   const [showViewers, setShowViewers] = useState(false);
+  const [storyDownloadStep, setStoryDownloadStep] = useState<0 | 1>(0);
 
   useEffect(() => {
     if (!activeStoryId) return;
@@ -92,6 +94,25 @@ export const StoryViewerModal: React.FC = () => {
     } catch {
       showToast('Could not delete story', 'error');
     }
+  };
+
+  const handleDownloadStory = () => {
+    if (!currentStory?.mediaUrl) return;
+    const ext = currentStory.mediaType === 'video' ? 'mp4' : 'jpg';
+    const filename = `story_${currentStory.id}.${ext}`;
+
+    const res = executeTwoStepDownload(
+      `story_${currentStory.id}`,
+      async () => {
+        await downloadMediaFile(currentStory.mediaUrl!, filename);
+        showToast('Story downloaded!', 'success');
+      },
+      (msg) => {
+        showToast(msg, 'info');
+      }
+    );
+
+    setStoryDownloadStep(res.step === 1 ? 1 : 0);
   };
 
   return (
@@ -175,6 +196,19 @@ export const StoryViewerModal: React.FC = () => {
           </div>
 
           <div className="flex items-center gap-2">
+            {currentStory.mediaUrl && (
+              <button
+                onClick={handleDownloadStory}
+                className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${
+                  storyDownloadStep === 1
+                    ? 'bg-amber-500 hover:bg-amber-600 text-white ring-2 ring-amber-300 animate-pulse'
+                    : 'bg-black/40 hover:bg-black/60 text-white'
+                }`}
+                title={storyDownloadStep === 1 ? 'Click again to download' : 'Download Story'}
+              >
+                <Download className="w-4 h-4" />
+              </button>
+            )}
             {isOwner && (
               <button
                 onClick={handleDelete}

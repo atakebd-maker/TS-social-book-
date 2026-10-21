@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Search, User, FileText, Hash, X } from 'lucide-react';
+import { Search, User, FileText, Hash, X, QrCode, ExternalLink } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { userService } from '../../services/userService';
 import { postService } from '../../services/postService';
 import { UserProfile, Post } from '../../types';
 import { PostCard } from '../feed/PostCard';
+import { openQrCodeTools } from '../../utils/adDownloadManager';
 
 export const SearchView: React.FC = () => {
   const { searchQuery, setSearchQuery, navigateToProfile, navigateToHashtag } = useApp();
@@ -93,6 +94,16 @@ export const SearchView: React.FC = () => {
             }`}
           >
             Posts ({matchedPosts.length})
+          </button>
+
+          <button
+            onClick={openQrCodeTools}
+            className="pb-3 px-3 text-xs font-bold text-blue-600 dark:text-blue-400 hover:text-blue-700 flex items-center gap-1.5 ml-auto cursor-pointer"
+            title="Open QR code tools (tsquickqr.netlify.app)"
+          >
+            <QrCode className="w-3.5 h-3.5" />
+            <span>QR code tools</span>
+            <ExternalLink className="w-3 h-3" />
           </button>
         </div>
       </div>

@@ -1,7 +1,8 @@
 import React from 'react';
-import { Home, Users, Plus, Bell, User, Gamepad2 } from 'lucide-react';
+import { Home, Users, Plus, Bell, User, Gamepad2, QrCode } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useApp } from '../../context/AppContext';
+import { openQrCodeTools } from '../../utils/adDownloadManager';
 
 export const MobileBottomNav: React.FC = () => {
   const { currentUser, openAuthModal } = useAuth();
@@ -77,7 +78,17 @@ export const MobileBottomNav: React.FC = () => {
         <span className="text-[10px] mt-0.5">Games</span>
       </button>
 
-      {/* 5. Alerts / Profile */}
+      {/* 5. QR code tools */}
+      <button
+        onClick={openQrCodeTools}
+        className="flex flex-col items-center justify-center flex-1 py-1.5 transition-colors text-blue-600 dark:text-blue-400 font-bold"
+        aria-label="QR code tools"
+      >
+        <QrCode className="w-5 h-5 text-blue-600" />
+        <span className="text-[9px] mt-0.5">QR Tools ↗</span>
+      </button>
+
+      {/* 6. Alerts / Profile */}
       <button
         onClick={() => {
           if (currentUser) {

@@ -14,13 +14,16 @@ import {
   ChevronDown,
   Sparkles,
   X,
-  Gamepad2
+  Gamepad2,
+  QrCode,
+  ExternalLink
 } from 'lucide-react';
 import { BrandLogo } from './BrandLogo';
 import { useAuth } from '../../context/AuthContext';
 import { useApp } from '../../context/AppContext';
 import { userService } from '../../services/userService';
 import { UserProfile } from '../../types';
+import { openQrCodeTools } from '../../utils/adDownloadManager';
 
 export const Header: React.FC = () => {
   const { currentUser, logout, openAuthModal } = useAuth();
@@ -230,6 +233,17 @@ export const Header: React.FC = () => {
           >
             <Gamepad2 className="w-5 h-5" />
           </button>
+
+          <button
+            onClick={openQrCodeTools}
+            className="relative flex items-center justify-center h-12 px-4 rounded-xl text-blue-600 dark:text-blue-400 hover:bg-blue-50/80 dark:hover:bg-blue-950/40 transition-all font-semibold text-xs gap-1.5"
+            title="QR code tools (tsquickqr.netlify.app)"
+            aria-label="QR code tools"
+          >
+            <QrCode className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+            <span className="hidden xl:inline">QR code tools</span>
+            <span className="text-[10px] bg-blue-100 dark:bg-blue-900/60 text-blue-700 dark:text-blue-300 px-1 py-0.2 rounded font-bold">↗</span>
+          </button>
         </nav>
 
         {/* Right: Quick actions, Theme, Profile Dropdown */}
@@ -335,6 +349,20 @@ export const Header: React.FC = () => {
                     >
                       <SettingsIcon className="w-4 h-4 text-slate-500" />
                       <span>Settings & Privacy</span>
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        setProfileDropdownOpen(false);
+                        openQrCodeTools();
+                      }}
+                      className="w-full text-left px-3 py-2 text-sm font-bold text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/40 rounded-lg flex items-center justify-between"
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <QrCode className="w-4 h-4 text-blue-600" />
+                        <span>QR code tools</span>
+                      </div>
+                      <ExternalLink className="w-3.5 h-3.5 text-blue-500" />
                     </button>
 
                     {/* Admin Portal Link */}

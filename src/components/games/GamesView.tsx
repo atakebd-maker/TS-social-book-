@@ -15,16 +15,61 @@ import {
   ArrowRight,
   CheckCircle2,
   XCircle,
-  HelpCircle
+  HelpCircle,
+  Download,
+  QrCode,
+  ExternalLink
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
+import { openQrCodeTools, executeTwoStepDownload, downloadCanvas } from '../../utils/adDownloadManager';
 
 type GameType = 'snake' | 'memory' | 'tictactoe' | 'trivia';
+
+function generateScorecard(gameName: string, title: string, scoreText: string, filename: string) {
+  const canvas = document.createElement('canvas');
+  canvas.width = 600;
+  canvas.height = 340;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return;
+
+  const grad = ctx.createLinearGradient(0, 0, 600, 340);
+  grad.addColorStop(0, '#0f172a');
+  grad.addColorStop(1, '#1e293b');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, 600, 340);
+
+  ctx.strokeStyle = '#3b82f6';
+  ctx.lineWidth = 6;
+  ctx.strokeRect(10, 10, 580, 320);
+
+  ctx.fillStyle = '#60a5fa';
+  ctx.font = 'bold 18px sans-serif';
+  ctx.fillText('TS SOCIAL BOOK • GAMES CENTER', 40, 50);
+
+  ctx.fillStyle = '#ffffff';
+  ctx.font = '900 32px sans-serif';
+  ctx.fillText(gameName, 40, 105);
+
+  ctx.fillStyle = '#f59e0b';
+  ctx.font = 'bold 22px sans-serif';
+  ctx.fillText(title, 40, 160);
+
+  ctx.fillStyle = '#34d399';
+  ctx.font = '900 44px sans-serif';
+  ctx.fillText(scoreText, 40, 230);
+
+  ctx.fillStyle = '#94a3b8';
+  ctx.font = '13px sans-serif';
+  ctx.fillText(`Played on ${new Date().toLocaleDateString()} • Verified on TS Social Book`, 40, 295);
+
+  downloadCanvas(canvas, filename);
+}
 
 // ==================== 1. RETRO SNAKE GAME ====================
 const GRID_SIZE = 16;
 
 const SnakeGame: React.FC = () => {
+  const { showToast } = useApp();
   const [snake, setSnake] = useState<[number, number][]>([
     [7, 7],
     [7, 6],
@@ -198,13 +243,28 @@ const SnakeGame: React.FC = () => {
               <>
                 <h3 className="text-rose-400 font-extrabold text-xl mb-1">Game Over!</h3>
                 <p className="text-slate-300 text-xs mb-3">You scored {score} points</p>
-                <button
-                  onClick={restartGame}
-                  className="px-5 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-lg transition-transform active:scale-95"
-                >
-                  <RotateCcw className="w-4 h-4" />
-                  <span>Play Again</span>
-                </button>
+                <div className="flex flex-wrap items-center justify-center gap-2">
+                  <button
+                    onClick={restartGame}
+                    className="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-lg transition-transform active:scale-95"
+                  >
+                    <RotateCcw className="w-4 h-4" />
+                    <span>Play Again</span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      executeTwoStepDownload(
+                        `snake_score_${score}`,
+                        () => generateScorecard('Retro Snake 🐍', 'Final Score', `${score} Points`, `snake_score_${score}.png`),
+                        (msg) => showToast(msg, 'info')
+                      );
+                    }}
+                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-lg transition-transform active:scale-95"
+                  >
+                    <Download className="w-4 h-4" />
+                    <span>Download Score Card</span>
+                  </button>
+                </div>
               </>
             ) : (
               <>
@@ -281,6 +341,7 @@ interface MemoryCard {
 }
 
 const MemoryMatchGame: React.FC = () => {
+  const { showToast } = useApp();
   const [cards, setCards] = useState<MemoryCard[]>([]);
   const [flippedCards, setFlippedCards] = useState<number[]>([]);
   const [moves, setMoves] = useState(0);
@@ -409,12 +470,27 @@ const MemoryMatchGame: React.FC = () => {
           <div className="text-2xl">🎉 🏆</div>
           <h4 className="font-extrabold text-emerald-800 text-sm">Congratulations! You Won!</h4>
           <p className="text-xs text-emerald-700">You completed the memory challenge in {moves} moves.</p>
-          <button
-            onClick={initGame}
-            className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-xs transition-colors"
-          >
-            Play Again
-          </button>
+          <div className="flex flex-wrap items-center justify-center gap-2 pt-1">
+            <button
+              onClick={initGame}
+              className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-xs transition-colors"
+            >
+              Play Again
+            </button>
+            <button
+              onClick={() => {
+                executeTwoStepDownload(
+                  `memory_win_${moves}`,
+                  () => generateScorecard('Memory Match 🧠', 'Challenge Completed!', `${moves} Moves`, `memory_victory_${moves}.png`),
+                  (msg) => showToast(msg, 'info')
+                );
+              }}
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl shadow-xs transition-colors flex items-center gap-1.5"
+            >
+              <Download className="w-4 h-4" />
+              <span>Download Certificate</span>
+            </button>
+          </div>
         </div>
       )}
     </div>
@@ -612,6 +688,7 @@ const TRIVIA_QUESTIONS = [
 ];
 
 const TriviaGame: React.FC = () => {
+  const { showToast } = useApp();
   const [currentIndex, setCurrentIndex] = useState(0);
   const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);
   const [score, setScore] = useState(0);
@@ -711,12 +788,27 @@ const TriviaGame: React.FC = () => {
           <p className="text-sm text-slate-600">
             You scored <strong className="text-blue-600">{score}</strong> / 100 points
           </p>
-          <button
-            onClick={restartQuiz}
-            className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition-colors"
-          >
-            Play Again
-          </button>
+          <div className="flex flex-wrap items-center justify-center gap-2 pt-2">
+            <button
+              onClick={restartQuiz}
+              className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition-colors"
+            >
+              Play Again
+            </button>
+            <button
+              onClick={() => {
+                executeTwoStepDownload(
+                  `trivia_score_${score}`,
+                  () => generateScorecard('Speed Trivia ⚡', 'Quiz Complete', `${score} / 100 Points`, `trivia_results_${score}.png`),
+                  (msg) => showToast(msg, 'info')
+                );
+              }}
+              className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5 shadow-sm active:scale-95"
+            >
+              <Download className="w-4 h-4" />
+              <span>Download Results</span>
+            </button>
+          </div>
         </div>
       )}
     </div>
@@ -740,6 +832,64 @@ export const GamesView: React.FC = () => {
             <p className="text-xs text-blue-100">Play instant retro &amp; brain games directly on TS Social Book!</p>
           </div>
         </div>
+      </div>
+
+      {/* Categories Bar */}
+      <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1">
+        <span className="text-xs font-bold text-slate-500 uppercase tracking-wider mr-1">Categories:</span>
+        <button
+          onClick={openQrCodeTools}
+          className="px-3.5 py-1.5 rounded-full text-xs font-bold bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-xs flex items-center gap-1.5 shrink-0"
+          title="Open QR code tools (tsquickqr.netlify.app)"
+        >
+          <QrCode className="w-3.5 h-3.5" />
+          <span>QR code tools</span>
+          <span className="text-[10px] bg-white/20 px-1 rounded-sm">↗</span>
+        </button>
+
+        <button
+          onClick={() => setSelectedGame('snake')}
+          className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all ${
+            selectedGame === 'snake'
+              ? 'bg-blue-600 text-white shadow-xs'
+              : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
+          }`}
+        >
+          🐍 Arcade Classic
+        </button>
+
+        <button
+          onClick={() => setSelectedGame('memory')}
+          className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all ${
+            selectedGame === 'memory'
+              ? 'bg-blue-600 text-white shadow-xs'
+              : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
+          }`}
+        >
+          🧠 Brain & Memory
+        </button>
+
+        <button
+          onClick={() => setSelectedGame('tictactoe')}
+          className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all ${
+            selectedGame === 'tictactoe'
+              ? 'bg-blue-600 text-white shadow-xs'
+              : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
+          }`}
+        >
+          ❌⭕ Tic-Tac-Toe
+        </button>
+
+        <button
+          onClick={() => setSelectedGame('trivia')}
+          className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all ${
+            selectedGame === 'trivia'
+              ? 'bg-blue-600 text-white shadow-xs'
+              : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
+          }`}
+        >
+          ⚡ Speed Trivia
+        </button>
       </div>
 
       {/* Game Selection Bar */}

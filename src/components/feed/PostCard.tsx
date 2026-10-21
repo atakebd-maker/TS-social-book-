@@ -16,7 +16,8 @@ import {
   EyeOff,
   Check,
   Play,
-  Repeat
+  Repeat,
+  Download
 } from 'lucide-react';
 import { Post, ReactionType, PostMedia } from '../../types';
 import { useAuth } from '../../context/AuthContext';
@@ -27,6 +28,7 @@ import { commentService } from '../../services/commentService';
 import { ReactionPopover } from './ReactionPopover';
 import { CommentItem } from '../comments/CommentItem';
 import { CommentComposer } from '../comments/CommentComposer';
+import { executeTwoStepDownload, downloadMediaFile } from '../../utils/adDownloadManager';
 
 interface PostCardProps {
   post: Post;
@@ -150,6 +152,27 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onHide }) => {
     } catch {
       showToast('Could not delete post', 'error');
     }
+  };
+
+  const [downloadStep, setDownloadStep] = useState<0 | 1>(0);
+
+  const handleDownloadMedia = (mediaItem?: PostMedia) => {
+    const target = mediaItem || (post.media && post.media[0]);
+    if (!target) return;
+    const ext = target.type === 'video' ? 'mp4' : 'jpg';
+    const filename = `post_${post.id}_${target.id || 'media'}.${ext}`;
+
+    const res = executeTwoStepDownload(
+      `post_${post.id}_${target.id || 'media'}`,
+      async () => {
+        await downloadMediaFile(target.url, filename);
+        showToast('Download started!', 'success');
+      },
+      (notice) => {
+        showToast(notice, 'info');
+      }
+    );
+    setDownloadStep(res.step === 1 ? 1 : 0);
   };
 
   const isAuthor = currentUser?.id === post.authorId;
@@ -329,6 +352,22 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onHide }) => {
                 >
                   <Trash2 className="w-3.5 h-3.5" />
                   <span>Delete Post</span>
+                </button>
+              )}
+
+              {post.media && post.media.length > 0 && (
+                <button
+                  onClick={() => {
+                    handleDownloadMedia();
+                  }}
+                  className={`w-full text-left px-3.5 py-2 text-xs font-semibold flex items-center gap-2.5 transition-colors ${
+                    downloadStep === 1
+                      ? 'text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30'
+                      : 'text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800'
+                  }`}
+                >
+                  <Download className="w-3.5 h-3.5 text-blue-500" />
+                  <span>{downloadStep === 1 ? 'Click to Confirm Download' : 'Download Photo / Video'}</span>
                 </button>
               )}
 
