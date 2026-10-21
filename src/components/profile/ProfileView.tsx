@@ -105,7 +105,7 @@ export const ProfileView: React.FC = () => {
 
   useEffect(() => {
     loadProfile();
-  }, [targetUserId, currentUser, refreshKey]);
+  }, [targetUserId, currentUser?.id]);
 
   if (loading) {
     return (

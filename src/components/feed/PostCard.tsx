@@ -57,17 +57,17 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onHide }) => {
 
   // Check saved state
   useEffect(() => {
-    if (currentUser) {
+    if (currentUser?.id) {
       postService.isPostSaved(currentUser.id, post.id).then(setIsSaved);
     }
-  }, [currentUser, post.id, refreshKey]);
+  }, [currentUser?.id, post.id]);
 
-  // Load comments when drawer is opened or refreshed
+  // Load comments when drawer is opened
   useEffect(() => {
     if (commentsOpen) {
       commentService.getComments(post.id).then(setComments);
     }
-  }, [commentsOpen, post.id, refreshKey]);
+  }, [commentsOpen, post.id]);
 
   const userReaction: ReactionType | undefined = currentUser
     ? post.reactions?.[currentUser.id]

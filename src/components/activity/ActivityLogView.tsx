@@ -23,7 +23,7 @@ export const ActivityLogView: React.FC = () => {
 
   useEffect(() => {
     loadLogs();
-  }, [currentUser, refreshKey]);
+  }, [currentUser?.id]);
 
   const handleClearAll = async () => {
     if (!currentUser) return;

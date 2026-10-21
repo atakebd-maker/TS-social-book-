@@ -13,6 +13,7 @@ interface AuthContextType {
   closeAuthModal: () => void;
   login: (email: string, password?: string) => Promise<void>;
   signUp: (data: { name: string; username: string; email: string; password?: string }) => Promise<void>;
+  loginWithGoogle: () => Promise<void>;
   logout: () => Promise<void>;
   updateCurrentUser: (updates: Partial<UserProfile>) => Promise<void>;
 }
@@ -58,6 +59,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     closeAuthModal();
   };
 
+  const loginWithGoogle = async () => {
+    const user = await authService.loginWithGoogle();
+    setCurrentUser(user);
+    closeAuthModal();
+  };
+
   const logout = async () => {
     await authService.logout();
     setCurrentUser(null);
@@ -81,6 +88,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         closeAuthModal,
         login,
         signUp,
+        loginWithGoogle,
         logout,
         updateCurrentUser
       }}

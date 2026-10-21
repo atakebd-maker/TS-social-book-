@@ -33,7 +33,7 @@ export const FriendsView: React.FC = () => {
 
   useEffect(() => {
     loadData();
-  }, [currentUser, refreshKey]);
+  }, [currentUser?.id]);
 
   const handleAccept = async (req: FriendRequest) => {
     if (!currentUser) return;

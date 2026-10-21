@@ -26,7 +26,7 @@ export const StoryViewerModal: React.FC = () => {
       setCurrentIndex(idx !== -1 ? idx : 0);
       setProgress(0);
     });
-  }, [activeStoryId, refreshKey]);
+  }, [activeStoryId]);
 
   const currentStory = stories[currentIndex];
 

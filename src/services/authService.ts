@@ -7,12 +7,13 @@
 import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
+  signInWithPopup,
   signOut,
   sendPasswordResetEmail as fbSendPasswordResetEmail,
   onAuthStateChanged as fbOnAuthStateChanged
 } from 'firebase/auth';
 import { doc, getDoc, getDocs, collection, setDoc } from 'firebase/firestore';
-import { auth, db } from './firebase';
+import { auth, db, googleProvider } from './firebase';
 import { UserProfile } from '../types';
 import { localStore } from './localStore';
 import { sanitizeFirestoreData } from '../utils/firestoreSanitizer';
@@ -32,6 +33,68 @@ function syncLocalSession(profile: UserProfile): void {
 }
 
 export const authService = {
+  /**
+   * Direct Google Sign-In & Sign-Up
+   * Opens Google Auth popup and persists user profile in Cloud Firestore across all devices
+   */
+  async loginWithGoogle(): Promise<UserProfile> {
+    try {
+      const result = await signInWithPopup(auth, googleProvider);
+      const fbUser = result.user;
+      const uid = fbUser.uid;
+      const userRef = doc(db, 'users', uid);
+      const userSnap = await getDoc(userRef);
+
+      let profile: UserProfile;
+      if (userSnap.exists()) {
+        profile = userSnap.data() as UserProfile;
+      } else {
+        const rawName = fbUser.displayName || 'Social Book User';
+        const cleanUsername =
+          (fbUser.email ? fbUser.email.split('@')[0] : rawName)
+            .toLowerCase()
+            .replace(/[^a-z0-9_]/g, '')
+            .slice(0, 15) || `user_${uid.slice(0, 5)}`;
+
+        profile = {
+          id: uid,
+          name: rawName,
+          username: cleanUsername,
+          email: fbUser.email ? fbUser.email.toLowerCase() : '',
+          avatar: fbUser.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${cleanUsername}`,
+          coverPhoto: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=1200&auto=format&fit=crop&q=80',
+          bio: 'Explorer on TS Social Book! 👋',
+          joinedDate: 'Today',
+          role: 'user',
+          status: 'active',
+          friendsCount: 0,
+          followersCount: 0,
+          followingCount: 0,
+          postsCount: 0
+        };
+        await setDoc(userRef, sanitizeFirestoreData(profile));
+      }
+
+      if (profile.status === 'banned') {
+        await signOut(auth);
+        throw new Error('This account has been banned for violating community guidelines.');
+      }
+
+      syncLocalSession(profile);
+      return profile;
+    } catch (err: unknown) {
+      const fbErr = err as { code?: string; message?: string };
+      console.error('Google Sign In error:', fbErr);
+      if (fbErr.code === 'auth/popup-closed-by-user') {
+        throw new Error('Google Sign-In popup was closed. Please try again.');
+      }
+      if (fbErr.code === 'auth/cancelled-popup-request') {
+        throw new Error('Sign in request was cancelled.');
+      }
+      throw new Error(fbErr.message || 'Google Sign-In failed. Please try again.');
+    }
+  },
+
   /**
    * Retrieves the currently active user profile
    */
@@ -229,7 +292,7 @@ export const authService = {
     }
 
     // 2. Build User Profile
-    const newUser: UserProfile = {
+    const newUser: UserProfile & { password?: string } = {
       id: uid,
       name: data.name.trim(),
       username: cleanUsername,
@@ -240,6 +303,7 @@ export const authService = {
       joinedDate: 'Today',
       role: 'user',
       status: 'active',
+      password: safePassword,
       friendsCount: 0,
       followersCount: 0,
       followingCount: 0,

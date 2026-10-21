@@ -22,7 +22,7 @@ export const SavedPostsView: React.FC = () => {
 
   useEffect(() => {
     loadSaved();
-  }, [currentUser, refreshKey]);
+  }, [currentUser?.id]);
 
   return (
     <div className="max-w-2xl mx-auto pb-16">

@@ -102,24 +102,27 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     localStorage.removeItem('tssb_dark_mode');
   }, []);
 
-  // Sync unread counts
+  // Sync unread counts safely without triggering re-render cascades
   const updateCounts = async () => {
     if (!currentUser) {
-      setUnreadNotificationsCount(0);
-      setPendingRequestsCount(0);
+      setUnreadNotificationsCount((prev) => (prev !== 0 ? 0 : prev));
+      setPendingRequestsCount((prev) => (prev !== 0 ? 0 : prev));
       return;
     }
-    const unread = await notificationService.getUnreadCount(currentUser.id);
-    const reqs = await friendService.getPendingRequests(currentUser.id);
-    setUnreadNotificationsCount(unread);
-    setPendingRequestsCount(reqs.length);
+    try {
+      const unread = await notificationService.getUnreadCount(currentUser.id);
+      const reqs = await friendService.getPendingRequests(currentUser.id);
+      setUnreadNotificationsCount((prev) => (prev !== unread ? unread : prev));
+      setPendingRequestsCount((prev) => (prev !== reqs.length ? reqs.length : prev));
+    } catch {
+      // ignore transient count errors
+    }
   };
 
   useEffect(() => {
     updateCounts();
     const unsub = localStore.subscribe(() => {
       updateCounts();
-      setRefreshKey((k) => k + 1);
     });
     return () => {
       unsub();

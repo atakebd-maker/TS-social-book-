@@ -26,7 +26,7 @@ export const SidebarRight: React.FC = () => {
 
   useEffect(() => {
     loadData();
-  }, [currentUser, refreshKey]);
+  }, [currentUser?.id]);
 
   const handleAcceptRequest = async (request: FriendRequest) => {
     if (!currentUser) return;

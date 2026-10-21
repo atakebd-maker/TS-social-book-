@@ -42,26 +42,24 @@ export const postService = {
   async fetchRemotePosts(): Promise<Post[]> {
     try {
       const snap = await getDocs(collection(db, 'posts'));
-      if (!snap.empty) {
-        const fetched: Post[] = snap.docs.map((d) => d.data() as Post);
-        const map = new Map<string, Post>();
-        fetched.forEach((p) => {
-          if (p && p.id) map.set(p.id, p);
-        });
+      const fetched: Post[] = snap.docs.map((d) => d.data() as Post);
+      const map = new Map<string, Post>();
+      fetched.forEach((p) => {
+        if (p && p.id) map.set(p.id, p);
+      });
 
-        // Also merge local posts that may not have synced yet
-        localStore.posts.forEach((p) => {
-          if (p && p.id && !map.has(p.id)) {
-            map.set(p.id, p);
-          }
-        });
+      // Also merge local posts that may not have synced yet
+      localStore.posts.forEach((p) => {
+        if (p && p.id && !map.has(p.id)) {
+          map.set(p.id, p);
+        }
+      });
 
-        localStore.posts = Array.from(map.values()).sort(
-          (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-        );
-        localStore.savePosts();
-        return localStore.posts;
-      }
+      localStore.posts = Array.from(map.values()).sort(
+        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      );
+      localStore.savePosts();
+      return localStore.posts;
     } catch (err) {
       console.warn('Failed to fetch posts from Firestore:', err);
     }
@@ -76,25 +74,23 @@ export const postService = {
       const unsubscribe = onSnapshot(
         collection(db, 'posts'),
         (snap) => {
-          if (!snap.empty) {
-            const remotePosts: Post[] = snap.docs.map((d) => d.data() as Post);
-            const map = new Map<string, Post>();
-            remotePosts.forEach((p) => {
-              if (p && p.id) map.set(p.id, p);
-            });
+          const remotePosts: Post[] = snap.docs.map((d) => d.data() as Post);
+          const map = new Map<string, Post>();
+          remotePosts.forEach((p) => {
+            if (p && p.id) map.set(p.id, p);
+          });
 
-            localStore.posts.forEach((p) => {
-              if (p && p.id && !map.has(p.id)) {
-                map.set(p.id, p);
-              }
-            });
+          localStore.posts.forEach((p) => {
+            if (p && p.id && !map.has(p.id)) {
+              map.set(p.id, p);
+            }
+          });
 
-            localStore.posts = Array.from(map.values()).sort(
-              (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-            );
-            localStore.savePosts();
-            callback(localStore.posts);
-          }
+          localStore.posts = Array.from(map.values()).sort(
+            (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+          );
+          localStore.savePosts();
+          callback(localStore.posts);
         },
         (error) => {
           console.warn('Posts real-time listener notice:', error);
@@ -239,8 +235,13 @@ export const postService = {
     try {
       const cleanData = sanitizeFirestoreData(newPost);
       await setDoc(doc(db, 'posts', newPost.id), cleanData);
+      console.log('Post successfully saved to Cloud Firestore:', newPost.id);
     } catch (err) {
       console.error('Failed to persist post to Firestore:', err);
+      // Remove from localStore if remote write rejected so UI does not desync
+      localStore.posts = localStore.posts.filter((p) => p.id !== newPost.id);
+      localStore.savePosts();
+      throw new Error(err instanceof Error ? err.message : 'Failed to save post to Cloud.');
     }
 
     // 3. Increment author's post count

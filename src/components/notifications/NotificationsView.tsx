@@ -34,7 +34,7 @@ export const NotificationsView: React.FC = () => {
 
   useEffect(() => {
     loadNotifications();
-  }, [currentUser, refreshKey]);
+  }, [currentUser?.id]);
 
   const handleMarkAllRead = async () => {
     if (!currentUser) return;

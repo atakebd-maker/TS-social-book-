@@ -48,14 +48,32 @@ export const FeedView: React.FC = () => {
     loadFeed();
 
     // Real-time synchronization across all devices and mobile phones
-    const unsubscribe = postService.subscribeToPosts(() => {
-      loadFeed();
+    const unsubscribe = postService.subscribeToPosts((updatedPosts) => {
+      let filtered = [...updatedPosts];
+      if (selectedHashtag) {
+        const tag = selectedHashtag.replace(/^#/, '').toLowerCase();
+        filtered = filtered.filter((p) => p.content.toLowerCase().includes(`#${tag}`));
+      } else if (filterMode === 'mine' && currentUser) {
+        filtered = filtered.filter((p) => p.authorId === currentUser.id);
+      } else {
+        if (filterMode === 'popular') {
+          filtered.sort((a, b) => {
+            const totalA = Object.values(a.reactionsCount || {}).reduce((x, y) => x + y, 0);
+            const totalB = Object.values(b.reactionsCount || {}).reduce((x, y) => x + y, 0);
+            return totalB - totalA;
+          });
+        } else if (filterMode === 'videos') {
+          filtered = filtered.filter((p) => p.media && p.media.some((m) => m.type === 'video'));
+        }
+      }
+      setPosts(filtered);
+      setLoading(false);
     });
 
     return () => {
       unsubscribe();
     };
-  }, [filterMode, selectedHashtag, currentUser, refreshKey]);
+  }, [filterMode, selectedHashtag, currentUser?.id]);
 
   const visiblePosts = posts.filter((p) => !hiddenPostIds.includes(p.id));
 

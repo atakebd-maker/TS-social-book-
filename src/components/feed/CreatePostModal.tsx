@@ -134,8 +134,9 @@ export const CreatePostModal: React.FC = () => {
       setShowBackgroundPicker(false);
       triggerRefresh();
       closeCreatePostModal();
-    } catch {
-      showToast('Failed to create post. Please try again.', 'error');
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to create post. Please try again.';
+      showToast(msg, 'error');
     } finally {
       setIsSubmitting(false);
     }

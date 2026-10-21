@@ -51,7 +51,7 @@ export const AdminPortalView: React.FC = () => {
 
   useEffect(() => {
     loadData();
-  }, [refreshKey]);
+  }, []);
 
   const handleRoleChange = async (userId: string, role: UserRole) => {
     try {

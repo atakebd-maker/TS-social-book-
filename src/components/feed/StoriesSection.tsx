@@ -18,7 +18,7 @@ export const StoriesSection: React.FC = () => {
 
   useEffect(() => {
     loadStories();
-  }, [refreshKey]);
+  }, []);
 
   const handleScroll = (direction: 'left' | 'right') => {
     if (scrollContainerRef.current) {

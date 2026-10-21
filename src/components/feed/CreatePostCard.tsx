@@ -140,8 +140,9 @@ export const CreatePostCard: React.FC = () => {
       setShowBackgroundPicker(false);
       setShowPreviewModal(false);
       triggerRefresh();
-    } catch {
-      showToast('Failed to publish post', 'error');
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to publish post';
+      showToast(msg, 'error');
     } finally {
       setIsSubmitting(false);
     }
